@@ -75,9 +75,10 @@ impl Stream for XsStream<'_> {
                 // Prevent having the fd registered twice, as it makes AsyncFd::with_interest failing.
                 // Only update it if it has changed.
                 if new_fd != self.current_fd.unwrap_or(-1) {
-                    let Ok(fd) = AsyncFd::with_interest(RawFd::from(new_fd), Interest::READABLE) else {
+                    let Ok(fd) = AsyncFd::with_interest(RawFd::from(new_fd), Interest::READABLE)
+                    else {
                         // Unable to use fd
-                        return Poll::Ready(None)
+                        return Poll::Ready(None);
                     };
 
                     self.current_fd.replace(new_fd);

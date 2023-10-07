@@ -51,10 +51,10 @@ fn main() {
     let xs = Xs::new(XsOpenFlags::ReadOnly).expect("xenstore should open");
 
     match cli.command {
-        Command::List{path} => cmd_list(&xs, &path),
-        Command::Read{path} => cmd_read(&xs, &path),
-        Command::Rm{path} => cmd_rm(&xs, &path),
-        Command::Write{path, data} => cmd_write(&xs, &path, &data),
+        Command::List { path } => cmd_list(&xs, &path),
+        Command::Read { path } => cmd_read(&xs, &path),
+        Command::Rm { path } => cmd_rm(&xs, &path),
+        Command::Write { path, data } => cmd_write(&xs, &path, &data),
         Command::Watch { path } => cmd_watch(&xs, &path),
         #[cfg(feature = "async_watch")]
         Command::WatchAsync { path } => cmd_watch_async(&xs, &path),
@@ -110,10 +110,7 @@ fn cmd_watch_async(xs: &Xs, path: &String) {
     use futures::StreamExt;
     use tokio::runtime::Builder;
 
-    let rt = Builder::new_current_thread()
-        .enable_io()
-        .build()
-        .unwrap();
+    let rt = Builder::new_current_thread().enable_io().build().unwrap();
 
     rt.block_on(async move {
         xs.watch(path, "xenstore-rs-token")

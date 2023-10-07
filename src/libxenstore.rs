@@ -36,8 +36,7 @@ type FnWrite = fn(
     len: c_uint,
 ) -> bool;
 // xs_watch
-type FnWatch =
-    fn(h: *mut xs_handle, path: *const c_char, token: *const c_char) -> bool;
+type FnWatch = fn(h: *mut xs_handle, path: *const c_char, token: *const c_char) -> bool;
 // xs_fileno
 type FnFileno = fn(h: *mut xs_handle) -> c_int;
 // xs_check_watch
