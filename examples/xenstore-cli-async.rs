@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use futures::StreamExt;
-use xenstore_rs::{tokio::XsTokio, AsyncWatch, AsyncXs};
+use xenstore_rs::{tokio::XsTokio, AsyncWatch, AsyncXs, AsyncXsPerm};
 
 /// Demo/test tool for xenstore Rust bindings
 #[derive(Parser)]
@@ -38,6 +38,18 @@ enum Command {
         #[arg()]
         path: String,
     },
+    /// Get node permissions.
+    GetPerms {
+        #[arg()]
+        path: String,
+    },
+    /// Set node permissions
+    SetPerms {
+        #[arg()]
+        path: String,
+        #[arg()]
+        perms: Vec<String>,
+    },
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -53,6 +65,8 @@ async fn main() {
         Command::Rm { path } => cmd_rm(&mut xs, &path).await,
         Command::Write { path, data } => cmd_write(&mut xs, &path, &data).await,
         Command::Watch { path } => cmd_watch(&mut xs, &path).await,
+        Command::GetPerms { path } => cmd_get_perms(&mut xs, &path).await,
+        Command::SetPerms { path, perms } => cmd_set_perms(&mut xs, &path, &perms).await,
     }
 }
 
@@ -84,4 +98,24 @@ async fn cmd_watch<XS: AsyncXs + AsyncWatch>(xs: &mut XS, path: &String) {
     while let Some(entry) = stream.next().await {
         println!("{entry}: {:?}", xs.read(&entry).await);
     }
+}
+
+async fn cmd_get_perms(xs: &mut impl AsyncXsPerm, path: &String) {
+    let perms = xs.get_perms(path).await.expect("path should be readable");
+
+    for perm in perms {
+        println!("{perm}");
+    }
+}
+
+async fn cmd_set_perms(xs: &mut impl AsyncXsPerm, path: &String, perms: &[String]) {
+    let perms = perms
+        .iter()
+        .map(|s| s.parse())
+        .collect::<Result<Vec<_>, _>>()
+        .expect("Unable to parse permissions");
+
+    xs.set_perms(path, &perms)
+        .await
+        .expect("Unable to set permissions");
 }

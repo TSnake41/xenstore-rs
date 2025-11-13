@@ -17,6 +17,17 @@ pub mod tokio;
 
 use std::io;
 
+#[derive(Clone, Copy, Debug)]
+pub struct DomId(pub u16);
+
+#[derive(Clone, Copy, Debug)]
+pub enum XsPermission {
+    Write(DomId),
+    Read(DomId),
+    Both(DomId),
+    None(DomId),
+}
+
 /// Xenstore base trait.
 /// All xenstore implementations must implement this trait.
 pub trait Xs {
@@ -31,6 +42,15 @@ pub trait Xs {
 
     /// Remove a node.
     fn rm(&self, path: &str) -> io::Result<()>;
+}
+
+/// Xenstore permissions trait.
+pub trait XsPerm: Xs {
+    /// Get the permissions of the node.
+    fn get_perms(&self, path: &str) -> io::Result<Vec<XsPermission>>;
+
+    /// Set the permissions of the node.
+    fn set_perms(&self, path: &str, perms: &[XsPermission]) -> io::Result<()>;
 }
 
 /// Xenstore transaction capability trait.
@@ -72,6 +92,17 @@ pub trait LocalAsyncXs {
 
     /// Remove a node.
     async fn rm(&self, path: &str) -> io::Result<()>;
+}
+
+/// [`XsPermission`] async variant.
+#[cfg(feature = "async")]
+#[trait_variant::make(AsyncXsPerm: Send)]
+pub trait LocalAsyncXsPerm {
+    /// Get the permissions of the node.
+    async fn get_perms(&self, path: &str) -> io::Result<Vec<XsPermission>>;
+
+    /// Set the permissions of the node.
+    async fn set_perms(&self, path: &str, perms: &[XsPermission]) -> io::Result<()>;
 }
 
 /// [`XsTransaction`] async variant.

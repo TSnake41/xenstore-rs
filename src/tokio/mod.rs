@@ -15,6 +15,7 @@ use std::{
     env,
     io::{self, ErrorKind},
     pin::Pin,
+    str::FromStr,
     task::{Context, Poll},
 };
 
@@ -28,7 +29,7 @@ use interface::{launch_xenstore_task, XsTokioMessage, XsTokioRequest, XsWatchTok
 
 use crate::{
     wire::{XsMessage, XsMessageType},
-    AsyncWatch, AsyncXs,
+    AsyncWatch, AsyncXs, AsyncXsPerm, XsPermission,
 };
 
 /// Tokio Xenstore implementation.
@@ -125,6 +126,44 @@ impl AsyncXs for XsTokio {
     async fn rm(&self, path: &str) -> io::Result<()> {
         self.transmit_request(XsMessage::from_string(XsMessageType::Rm, 0, path))
             .await?;
+
+        Ok(())
+    }
+}
+
+impl AsyncXsPerm for XsTokio {
+    async fn get_perms(&self, path: &str) -> io::Result<Vec<XsPermission>> {
+        let response = self
+            .transmit_request(XsMessage::from_string(XsMessageType::GetPerms, 0, path))
+            .await?;
+
+        let payloads = response
+            .parse_payload_list()
+            .map_err(|e| io::Error::new(ErrorKind::InvalidData, e))?;
+
+        payloads
+            .iter()
+            .map(|s| XsPermission::from_str(s).map_err(io::Error::other))
+            .collect()
+    }
+
+    async fn set_perms(&self, path: &str, perms: &[XsPermission]) -> io::Result<()> {
+        // Build a parameter list for <path>|<perm-as-string>|+?
+        let perms_strings: Vec<String> = perms.iter().map(ToString::to_string).collect();
+
+        let mut perms_str: Vec<&str> = Vec::new();
+        perms_str.reserve_exact(1 + perms.len());
+
+        perms_str.push(path);
+        perms_strings.iter().for_each(|s| perms_str.push(s));
+
+        self.transmit_request(XsMessage::from_string_slice(
+            XsMessageType::SetPerms,
+            0,
+            &perms_str,
+            true,
+        ))
+        .await?;
 
         Ok(())
     }

@@ -4,11 +4,16 @@
 
 mod interface;
 
-use std::{cell::RefCell, io, ops::DerefMut};
+use std::{
+    cell::RefCell,
+    io::{self, ErrorKind},
+    ops::DerefMut,
+    str::FromStr,
+};
 
 use crate::{
     wire::{XsMessage, XsMessageType},
-    Xs,
+    Xs, XsPerm, XsPermission,
 };
 
 /// Unix Xenstore implementation.
@@ -83,6 +88,42 @@ impl Xs for XsUnix {
 
     fn rm(&self, path: &str) -> io::Result<()> {
         self.transmit_request(XsMessage::from_string(XsMessageType::Rm, 0, path))?;
+
+        Ok(())
+    }
+}
+
+impl XsPerm for XsUnix {
+    fn get_perms(&self, path: &str) -> io::Result<Vec<XsPermission>> {
+        let response =
+            self.transmit_request(XsMessage::from_string(XsMessageType::GetPerms, 0, path))?;
+
+        let payloads = response
+            .parse_payload_list()
+            .map_err(|e| io::Error::new(ErrorKind::InvalidData, e))?;
+
+        payloads
+            .iter()
+            .map(|s| XsPermission::from_str(s).map_err(io::Error::other))
+            .collect()
+    }
+
+    fn set_perms(&self, path: &str, perms: &[XsPermission]) -> io::Result<()> {
+        // Build a parameter list for <path>|<perm-as-string>|+?
+        let perms_strings: Vec<String> = perms.iter().map(ToString::to_string).collect();
+
+        let mut perms_str: Vec<&str> = Vec::new();
+        perms_str.reserve_exact(1 + perms.len());
+
+        perms_str.push(path);
+        perms_strings.iter().for_each(|s| perms_str.push(s));
+
+        self.transmit_request(XsMessage::from_string_slice(
+            XsMessageType::SetPerms,
+            0,
+            &perms_str,
+            true,
+        ))?;
 
         Ok(())
     }

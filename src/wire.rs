@@ -2,9 +2,12 @@
 
 use std::{
     convert::{TryFrom, TryInto},
+    fmt::Display,
     io::{self, ErrorKind, Read, Write},
-    str::{self, Utf8Error},
+    str::{self, FromStr, Utf8Error},
 };
+
+use crate::{DomId, XsPermission};
 
 // TODO: Replace with cfg_match! when available.
 //       https://github.com/rust-lang/rust/pull/115416
@@ -288,5 +291,38 @@ impl XsMessage {
         };
 
         io::Error::new(kind, format!("XS interface error {e_string}"))
+    }
+}
+
+impl FromStr for XsPermission {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (perm_char, domid_part) = s
+            .split_at_checked(1)
+            .ok_or_else(|| "String is too short".to_string())?;
+
+        let domid = DomId(domid_part.parse::<u16>().map_err(|e| e.to_string())?);
+
+        Ok(match perm_char {
+            "w" => Self::Write(domid),
+            "r" => Self::Read(domid),
+            "b" => Self::Both(domid),
+            "n" => Self::None(domid),
+            p => return Err(format!("Got invalid permission: {p}")),
+        })
+    }
+}
+
+impl Display for XsPermission {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (kind, domid) = match self {
+            Self::Write(domid) => ('w', domid),
+            Self::Read(domid) => ('r', domid),
+            Self::Both(domid) => ('b', domid),
+            Self::None(domid) => ('n', domid),
+        };
+
+        write!(f, "{}{}", kind, domid.0)
     }
 }
