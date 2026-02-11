@@ -19,8 +19,17 @@ pub mod tokio;
 #[cfg(feature = "async-smol")]
 pub mod smol;
 
+#[cfg(not(target_os = "windows"))]
 #[cfg(feature = "async-generic")]
 pub mod xs_async;
+
+#[cfg(target_os = "windows")]
+pub mod windows;
+
+#[cfg(all(target_os = "windows", feature = "async-smol"))]
+pub mod smol {
+    pub use crate::windows::smol::XsSmol;
+}
 
 use std::io;
 
